@@ -10,7 +10,7 @@ import scipy.misc
 import shutil
 import os
 
-metadata = np.load('CoasterRacer-2.npy')
+metadata = np.load('Slither-1.npy')
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
@@ -19,8 +19,8 @@ def softmax(x):
 
 for m in metadata:
     actions = m['policy_dist']
-    actions = softmax(actions)
-    actions = actions**2.8
+#    actions = softmax(actions)
+    actions = actions**2
     actions = actions / np.sum(actions)
     print(actions)
     m['policy_dist'] = actions
@@ -31,7 +31,7 @@ tmpdir = tempfile.mkdtemp(prefix='a3c-visualize')
 print(tmpdir)
 
 def screen_from_metadatum(metadatum):
-    return np.squeeze(metadatum['state'], -1)
+    return metadatum['state']
 
 def array_from_figure(fig):
     fig.canvas.draw()
@@ -47,7 +47,8 @@ for index in range(1, len(metadata)):
         rewards = [metadata[other_index]['scalars']['reward'] for other_index in x]
         plt.subplot(3, 1, 1)
         plt.plot(x, rewards)
-        plt.axis([x[0], x[-1], -10, 45])
+#        plt.axis([x[0], x[-1], -10, 45])
+        plt.xlim(x[0], x[-1])
         plt.ylabel('reward')
         ax = plt.gca()
         ax.set_autoscale_on(False)
@@ -59,15 +60,17 @@ for index in range(1, len(metadata)):
         plt.xlim(x[0], x[-1])
         plt.ylabel('value estimate')
 
-    racing_keys = ['left', 'right', 'up', 'down', 'x', 'n', 'space', 'z', 'a', 's', 'd', 'w']
-    colors = ScalarMappable(cmap=plt.get_cmap('Paired')).to_rgba(np.linspace(0, 1, num=12))
+    slither_keys = ['0:00', '0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00', '10:30', '11:00', '11:30']
+    slither_keys.reverse()
+
+    colors = ScalarMappable(cmap=plt.get_cmap('hsv')).to_rgba(np.linspace(0, 1, num=24))
 
     def plot_actions():
         actions = [metadata[other_index]['policy_dist'] for other_index in x]
         actions = np.array(actions).T
         plt.subplot(3, 1, 3)
-        plt.stackplot(x, actions, labels=racing_keys, colors=colors)
-        plt.legend(ncol=2, frameon=True, loc='center left')
+        plt.stackplot(x, actions, labels=slither_keys, colors=colors)
+        plt.legend(ncol=4, frameon=True, loc='center left')
         plt.axis([x[0], x[-1], 1, 0])
         ax = plt.gca()
         ax.set_autoscale_on(False)
@@ -104,9 +107,9 @@ for index in range(1, len(metadata)):
 
     metadatum = metadata[index]
 
-    screen = screen_from_metadatum(metadatum) * 255
-    screen = np.expand_dims(screen, axis=-1)
-    screen = np.repeat(screen, 3, axis=-1)
+    screen = screen_from_metadatum(metadatum)
+#    screen = np.expand_dims(screen, axis=-1)
+#    screen = np.repeat(screen, 3, axis=-1)
     zoom=2
     screen = np.repeat(screen, zoom, 0)
     screen = np.repeat(screen, zoom, 1)
