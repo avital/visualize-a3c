@@ -11,6 +11,21 @@ import shutil
 import os
 
 metadata = np.load('CoasterRacer-2.npy')
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0) # only difference
+
+for m in metadata:
+    actions = m['policy_dist']
+    actions = softmax(actions)
+    actions = actions**2.8
+    actions = actions / np.sum(actions)
+    print(actions)
+    m['policy_dist'] = actions
+
+
 tmpdir = tempfile.mkdtemp(prefix='a3c-visualize')
 
 print(tmpdir)
@@ -50,7 +65,6 @@ for index in range(1, len(metadata)):
     def plot_actions():
         actions = [metadata[other_index]['policy_dist'] for other_index in x]
         actions = np.array(actions).T
-        print(actions)
         plt.subplot(3, 1, 3)
         plt.stackplot(x, actions, labels=racing_keys, colors=colors)
         plt.legend(ncol=2, frameon=True, loc='center left')
