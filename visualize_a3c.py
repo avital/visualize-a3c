@@ -20,7 +20,7 @@ def softmax(x):
 for m in metadata:
     actions = m['policy_dist']
 #    actions = softmax(actions)
-    actions = actions**2
+#    actions = actions**2
     actions = actions / np.sum(actions)
     m['policy_dist'] = actions
 
@@ -34,13 +34,15 @@ def screen_from_metadatum(metadatum):
 
 def array_from_figure(fig):
     fig.canvas.draw()
-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    data = np.fromstring(fig.canvas.tostring_argb(), dtype=np.uint8, sep='')
     width, height = fig.canvas.get_width_height()
-    return data.reshape((height, width, 3))
+    return data.reshape((height, width, 4))
 
-for index in range(1, len(metadata)):
+#metadata = metadata[0:4]
+for index in range(2, len(metadata)):
     print('{0}/{1}'.format(index+1, len(metadata)))
-    x = np.arange(max(0, index-50), index+1)
+    history_size = 1
+    x = np.arange(max(0, index-history_size), index)
 
     def plot_rewards():
         rewards = [metadata[other_index]['scalars']['reward'] for other_index in x]
@@ -60,34 +62,25 @@ for index in range(1, len(metadata)):
 #        plt.xlim(x[0], x[-1])
         plt.ylabel('value estimate')
 
-    slither_keys = ['0:00', '0:20', '0:40',
-                    '1:00', '1:20', '1:40',
-                    '2:00', '2:20', '2:40',
-                    '3:00', '3:20', '3:40',
-                    '4:00', '4:20', '4:40',
-                    '5:00', '5:20', '5:40',
-                    '6:00', '6:20', '6:40',
-                    '7:00', '7:20', '7:40',
-                    '8:00', '8:20', '8:40',
-                    '9:00', '9:20', '9:40',
-                    '10:00', '10:20', '10:40',
-                    '11:00', '11:20', '11:40']
-    slither_keys = slither_keys[27:] + slither_keys[:26]
-#    slither_keys.reverse()
-
     colors = ScalarMappable(cmap=plt.get_cmap('hsv')).to_rgba(np.linspace(0, 1, num=36))
 
     def plot_actions():
         actions = [metadata[other_index]['policy_dist'] for other_index in x]
         actions = np.array(actions).T
-        plt.subplot(3, 1, 3)
-        plt.stackplot(x, actions, labels=slither_keys, colors=colors)
-        plt.legend(ncol=3, fontsize='xx-small', borderpad=0.2, labelspacing=0.2, handletextpad=0.65, borderaxespad=0.2, columnspacing=0.2, frameon=True, loc='center left')
-        plt.axis([x[0], x[-1], 1, 0])
-        ax = plt.gca()
-        ax.set_autoscale_on(False)
-        ax.get_yaxis().set_visible(False)
-        plt.ylabel('snake direction')
+        axes = plt.subplot(1, 1, 1, polar=True, axisbg='none')
+        R, theta = np.meshgrid(1 / np.linspace(x.shape[0], 2, num=x.shape[0]+1), np.pi - np.linspace(0, 2*np.pi, num=37) + np.pi/36)
+        plt.ylim(0, 1)
+        axes.spines['polar'].set_visible(False)
+        plt.xticks([])
+        plt.yticks([])
+        plt.pcolormesh(theta, R, actions, cmap='gray', alpha=0.3)
+#        plt.stackplot(x, actions, labels=slither_keys, colors=colors)
+#        plt.legend(ncol=3, fontsize='xx-small', borderpad=0.2, labelspacing=0.2, handletextpad=0.65, borderaxespad=0.2, columnspacing=0.2, frameon=True, loc='center left')
+#        plt.axis([x[0], x[-1], 1, 0])
+#        ax = plt.gca()
+#        ax.set_autoscale_on(False)
+#        ax.get_yaxis().set_visible(False)
+#        plt.ylabel('snake direction')
 
 #    def plot_diagnostics_time_ranges(prefix, count):
 #        lower_bounds = [
@@ -104,34 +97,34 @@ for index in range(1, len(metadata)):
 #        plt.ylabel(prefix)
 
 
-    fig = plt.figure()
-    plot_rewards()
-    plot_value_predictions()
-    plot_actions()
-#    plot_diagnostics_time_ranges('observation_lag', 1)
-#    plot_diagnostics_time_ranges('clock_skew', 2)
-#    plot_diagnostics_time_ranges('action_lag', 3)
-
-    image = array_from_figure(fig)
-    plt.close(fig)
-
-    # make room for screen pixels
-    image = np.concatenate((255 * np.ones((440, 400, 3)), image), axis=1)
-
     metadatum = metadata[index]
-
     screen = screen_from_metadatum(metadatum)
 #    screen = np.expand_dims(screen, axis=-1)
 #    screen = np.repeat(screen, 3, axis=-1)
     zoom=2
     screen = np.repeat(screen, zoom, 0)
     screen = np.repeat(screen, zoom, 1)
-    screen_top = (440 - 128*zoom)//2
-    screen_left = (440 - 200*zoom)//2
-    image[screen_top:128*zoom+screen_top, screen_left:200*zoom+screen_left] = screen
+
+    fig = plt.figure(figsize=screen.shape[:2][::-1], dpi=1)
+    fig.patch.set_facecolor('none')
+#    plot_rewards()
+#    plot_value_predictions()
+    plot_actions()
+#    plot_diagnostics_time_ranges('observation_lag', 1)
+#    plot_diagnostics_time_ranges('clock_skew', 2)
+#    plot_diagnostics_time_ranges('action_lag', 3)
+
+    overlay = array_from_figure(fig)
+    plt.close(fig)
+
+    alpha = overlay[:,:,1] / 255
+    alpha = alpha * overlay[:,:,0] / 255
+    alpha = np.expand_dims(alpha, axis=-1)
+    overlay_rgb = overlay[:,:,1:]
+    screen = screen + (255-screen) * alpha
     imgpath = os.path.join(tmpdir, 'image-{0}.png'.format(index))
-    scipy.misc.imsave(imgpath, image)
+    scipy.misc.imsave(imgpath, screen)
 
 os.system("ffmpeg -f image2 -r 15 -i {0}/image-%d.png -vcodec mpeg4 -q:v 1 -y output.mp4".format(tmpdir))
-shutil.rmtree(tmpdir)
+#shutil.rmtree(tmpdir)
 
