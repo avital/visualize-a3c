@@ -10,7 +10,7 @@ import scipy.misc
 import shutil
 import os
 
-metadata = np.load('Slither-1.npy')
+metadata = np.load('Slither-2.npy')
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
@@ -22,7 +22,6 @@ for m in metadata:
 #    actions = softmax(actions)
     actions = actions**2
     actions = actions / np.sum(actions)
-    print(actions)
     m['policy_dist'] = actions
 
 
@@ -47,8 +46,8 @@ for index in range(1, len(metadata)):
         rewards = [metadata[other_index]['scalars']['reward'] for other_index in x]
         plt.subplot(3, 1, 1)
         plt.plot(x, rewards)
-#        plt.axis([x[0], x[-1], -10, 45])
-        plt.xlim(x[0], x[-1])
+        plt.axis([x[0], x[-1], 0, 4])
+#        plt.xlim(x[0], x[-1])
         plt.ylabel('reward')
         ax = plt.gca()
         ax.set_autoscale_on(False)
@@ -57,24 +56,38 @@ for index in range(1, len(metadata)):
         value_predictions = [metadata[other_index]['scalars']['value'] for other_index in x]
         plt.subplot(3, 1, 2)
         plt.plot(x, value_predictions)
-        plt.xlim(x[0], x[-1])
+        plt.axis([x[0], x[-1], -0.4, 0.4])
+#        plt.xlim(x[0], x[-1])
         plt.ylabel('value estimate')
 
-    slither_keys = ['0:00', '0:30', '1:00', '1:30', '2:00', '2:30', '3:00', '3:30', '4:00', '4:30', '5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00', '10:30', '11:00', '11:30']
-    slither_keys.reverse()
+    slither_keys = ['0:00', '0:20', '0:40',
+                    '1:00', '1:20', '1:40',
+                    '2:00', '2:20', '2:40',
+                    '3:00', '3:20', '3:40',
+                    '4:00', '4:20', '4:40',
+                    '5:00', '5:20', '5:40',
+                    '6:00', '6:20', '6:40',
+                    '7:00', '7:20', '7:40',
+                    '8:00', '8:20', '8:40',
+                    '9:00', '9:20', '9:40',
+                    '10:00', '10:20', '10:40',
+                    '11:00', '11:20', '11:40']
+    slither_keys = slither_keys[27:] + slither_keys[:26]
+#    slither_keys.reverse()
 
-    colors = ScalarMappable(cmap=plt.get_cmap('hsv')).to_rgba(np.linspace(0, 1, num=24))
+    colors = ScalarMappable(cmap=plt.get_cmap('hsv')).to_rgba(np.linspace(0, 1, num=36))
 
     def plot_actions():
         actions = [metadata[other_index]['policy_dist'] for other_index in x]
         actions = np.array(actions).T
         plt.subplot(3, 1, 3)
         plt.stackplot(x, actions, labels=slither_keys, colors=colors)
-        plt.legend(ncol=4, frameon=True, loc='center left')
+        plt.legend(ncol=3, fontsize='xx-small', borderpad=0.2, labelspacing=0.2, handletextpad=0.65, borderaxespad=0.2, columnspacing=0.2, frameon=True, loc='center left')
         plt.axis([x[0], x[-1], 1, 0])
         ax = plt.gca()
         ax.set_autoscale_on(False)
         ax.get_yaxis().set_visible(False)
+        plt.ylabel('snake direction')
 
 #    def plot_diagnostics_time_ranges(prefix, count):
 #        lower_bounds = [
