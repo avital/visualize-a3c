@@ -10,7 +10,7 @@ import scipy.misc
 import shutil
 import os
 
-metadata = np.load('CoasterRacer-2.npy')
+metadata = np.load('neon-racer/terrible.npy')
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
@@ -19,10 +19,11 @@ def softmax(x):
 
 for m in metadata:
     actions = m['policy_dist']
-    actions = softmax(actions)
-    actions = actions**2.8
+    actions = np.maximum(actions - 0.5, 0)
+#    actions = softmax(actions)
+#    actions = actions**8
     actions = actions / np.sum(actions)
-    print(actions)
+#    actions = (10 * (actions - 0.5)) / actions.shape[0]
     m['policy_dist'] = actions
 
 
@@ -31,7 +32,7 @@ tmpdir = tempfile.mkdtemp(prefix='a3c-visualize')
 print(tmpdir)
 
 def screen_from_metadatum(metadatum):
-    return np.squeeze(metadatum['state'], -1)
+    return metadatum['state']
 
 def array_from_figure(fig):
     fig.canvas.draw()
@@ -39,7 +40,7 @@ def array_from_figure(fig):
     width, height = fig.canvas.get_width_height()
     return data.reshape((height, width, 3))
 
-for index in range(1, len(metadata)):
+for index in range(1, len(metadata)-1):
     print('{0}/{1}'.format(index+1, len(metadata)))
     x = np.arange(max(0, index-50), index+1)
 
@@ -47,7 +48,8 @@ for index in range(1, len(metadata)):
         rewards = [metadata[other_index]['scalars']['reward'] for other_index in x]
         plt.subplot(3, 1, 1)
         plt.plot(x, rewards)
-        plt.axis([x[0], x[-1], -10, 45])
+        plt.xlim(index-50, index)
+#        plt.axis([index-50, index, 0, 120])
         plt.ylabel('reward')
         ax = plt.gca()
         ax.set_autoscale_on(False)
@@ -56,8 +58,8 @@ for index in range(1, len(metadata)):
         value_predictions = [metadata[other_index]['scalars']['value'] for other_index in x]
         plt.subplot(3, 1, 2)
         plt.plot(x, value_predictions)
-        plt.xlim(x[0], x[-1])
-        plt.ylabel('value estimate')
+        plt.xlim(index-50, index)
+        plt.ylabel('value')
 
     racing_keys = ['left', 'right', 'up', 'down', 'x', 'n', 'space', 'z', 'a', 's', 'd', 'w']
     colors = ScalarMappable(cmap=plt.get_cmap('Paired')).to_rgba(np.linspace(0, 1, num=12))
@@ -100,18 +102,17 @@ for index in range(1, len(metadata)):
     plt.close(fig)
 
     # make room for screen pixels
-    image = np.concatenate((255 * np.ones((440, 400, 3)), image), axis=1)
+    image = np.concatenate((255 * np.ones((440, 640, 3)), image), axis=1)
 
-    metadatum = metadata[index]
+    metadatum = metadata[index+1]
 
     screen = screen_from_metadatum(metadatum) * 255
-    screen = np.expand_dims(screen, axis=-1)
-    screen = np.repeat(screen, 3, axis=-1)
-    zoom=2
+    zoom=3
     screen = np.repeat(screen, zoom, 0)
     screen = np.repeat(screen, zoom, 1)
     screen_top = (440 - 128*zoom)//2
-    screen_left = (440 - 200*zoom)//2
+    screen_left = (640 - 200*zoom)//2
+    print(screen_top, screen_left, 128*zoom, 200*zoom)
     image[screen_top:128*zoom+screen_top, screen_left:200*zoom+screen_left] = screen
     imgpath = os.path.join(tmpdir, 'image-{0}.png'.format(index))
     scipy.misc.imsave(imgpath, image)
